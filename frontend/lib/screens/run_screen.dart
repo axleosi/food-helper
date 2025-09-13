@@ -17,8 +17,11 @@ class _RunScreenState extends State<RunScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService();
   final TextEditingController _orderController = TextEditingController();
+
   bool _isSubmitting = false;
   String? _startedByUid;
+  String? _place;
+  String? _creatorName;
 
   @override
   void initState() {
@@ -29,14 +32,25 @@ class _RunScreenState extends State<RunScreen> {
         Navigator.pushReplacementNamed(context, '/login');
       }
     });
-    
-    _loadRunCreator();
+
+    _loadRunDetails();
   }
 
-  Future<void> _loadRunCreator() async {
+  Future<void> _loadRunDetails() async {
     final runDoc = await _firestore.collection('runs').doc(widget.runId).get();
+    final startedBy = runDoc['startedBy'];
+    final place = runDoc['place'];
+
+    // fetch creator name
+    final userDoc = await _firestore.collection('users').doc(startedBy).get();
+    final creatorName = userDoc.exists
+        ? userDoc['fullName'] ?? "Someone"
+        : "Someone";
+
     setState(() {
-      _startedByUid = runDoc['startedBy'];
+      _startedByUid = startedBy;
+      _place = place;
+      _creatorName = creatorName;
     });
   }
 
@@ -81,14 +95,16 @@ class _RunScreenState extends State<RunScreen> {
   }
 
   String _capitalize(String input) {
-  if (input.isEmpty) return input;
-  return input
-      .split(" ")
-      .map((word) =>
-          word.isNotEmpty ? "${word[0].toUpperCase()}${word.substring(1)}" : "")
-      .join(" ");
-}
-
+    if (input.isEmpty) return input;
+    return input
+        .split(" ")
+        .map(
+          (word) => word.isNotEmpty
+              ? "${word[0].toUpperCase()}${word.substring(1)}"
+              : "",
+        )
+        .join(" ");
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,16 +115,62 @@ class _RunScreenState extends State<RunScreen> {
         title: const Text("Food Run"),
         backgroundColor: Colors.deepOrange,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.done_all),
-            onPressed: completeRun,
-            tooltip: "Complete Run",
-          ),
+          if (user?.uid == _startedByUid)
+            IconButton(
+              icon: const Icon(Icons.done_all),
+              onPressed: completeRun,
+              tooltip: "Complete Run",
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+              tooltip: "Back",
+            ),
         ],
       ),
+
       drawer: AppDrawer(),
       body: Column(
         children: [
+          // 👇 Modern banner with creator + place info
+          if (_place != null && _place!.isNotEmpty && _creatorName != null)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                color: Colors.deepOrange.shade50,
+                elevation: 3,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.food_bank,
+                        color: Colors.deepOrange,
+                        size: 32,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          user?.uid == _startedByUid
+                              ? "${_capitalize(_creatorName!)} is getting food from ${_capitalize(_place!)}"
+                              : "${_capitalize(_creatorName!)} is getting food from ${_capitalize(_place!)} — place your orders!",
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.deepOrange,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: getOrders(),
@@ -120,10 +182,12 @@ class _RunScreenState extends State<RunScreen> {
                 }
 
                 if (snapshot.data == null || snapshot.data!.docs.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Text(
-                      "No orders yet. Add yours below!",
-                      style: TextStyle(fontSize: 16),
+                      user?.uid == _startedByUid
+                          ? "No orders yet."
+                          : "No orders yet. Add yours below!",
+                      style: const TextStyle(fontSize: 16),
                     ),
                   );
                 }
@@ -176,8 +240,7 @@ class _RunScreenState extends State<RunScreen> {
                                 : status == "got_it"
                                 ? const Icon(Icons.done, color: Colors.green)
                                 : null,
-                            isThreeLine:
-                                true, // allows subtitle to have 2 lines
+                            isThreeLine: true,
                           );
                         },
                       ),
@@ -188,7 +251,7 @@ class _RunScreenState extends State<RunScreen> {
             ),
           ),
 
-          // Order input (only show if the user is NOT the creator)
+          // Order input (only if not the creator)
           if (user?.uid != _startedByUid)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

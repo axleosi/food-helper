@@ -223,13 +223,46 @@ class _SimpleRoomScreenState extends State<SimpleRoomScreen> {
                                   onPressed: () async {
                                     final user = _authService.getCurrentUser();
                                     if (user == null) return;
+
+                                    // 🔹 Ask for place before creating run
+                                    final placeController = TextEditingController();
+                                    final place = await showDialog<String>(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        title: const Text("Where are you going?"),
+                                        content: TextField(
+                                          controller: placeController,
+                                          decoration: const InputDecoration(
+                                            hintText: "Enter restaurant/place name",
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, null),
+                                            child: const Text("Cancel"),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(
+                                                context,
+                                                placeController.text.trim()),
+                                            child: const Text("Start"),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (place == null || place.isEmpty) return;
+
                                     final runId = _firestore.collection('runs').doc().id;
                                     await _firestore.collection('runs').doc(runId).set({
                                       'roomId': widget.roomId,
                                       'startedBy': user.uid,
                                       'isActive': true,
+                                      'place': place, // ✅ Save place
                                       'createdAt': FieldValue.serverTimestamp(),
                                     });
+
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
