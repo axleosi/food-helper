@@ -1,0 +1,37 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "food-helper-32267",
+          "appId": "1:50440651042:android:9e8f786acf255551c4657b",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "food-helper-32267",
+          "configurations": {
+            "android": "1:50440651042:android:9e8f786acf255551c4657b",
+            "web": "1:50440651042:web:761c821fd0cc8751c4657b",
+            "windows": "1:50440651042:web:ded8ed401da7af9ec4657b"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
